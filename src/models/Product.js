@@ -15,9 +15,14 @@
 // module.exports = mongoose.model("Product", productSchema);
 const mongoose = require("mongoose");
 
+// Delete cached model if it exists (prevents "Cannot overwrite model" error)
+if (mongoose.models.Product) {
+  delete mongoose.models.Product;
+}
+
 const productSchema = new mongoose.Schema({
   name:      { type: String, required: true },
-  category:  { type: String, required: true }, // free-text — no enum restriction
+  category:  { type: String, required: true }, // FREE TEXT - no enum restriction
   price:     { type: Number, required: true },
   img:       { type: String, default: "" },
   desc:      { type: String, default: "" },

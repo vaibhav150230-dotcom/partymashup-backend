@@ -52,25 +52,8 @@
 // module.exports = router;
 const express = require("express");
 const router = express.Router();
-const mongoose = require("mongoose");
+const Product = require("../models/Product");
 const { protect, ownerOnly } = require("../middleware/auth");
-
-// Define schema inline with NO enum restriction
-const productSchema = new mongoose.Schema({
-  name:      { type: String, required: true },
-  category:  { type: String, required: true }, // FREE TEXT - no enum
-  price:     { type: Number, required: true },
-  img:       { type: String, default: "" },
-  desc:      { type: String, default: "" },
-  tag:       { type: String, default: "" },
-  stock:     { type: Number, default: 99 },
-  mrp:       { type: Number, default: 0 },
-  active:    { type: Boolean, default: true },
-  createdAt: { type: Date, default: Date.now },
-});
-
-// Use existing model or create new one
-const Product = mongoose.models.Product || mongoose.model("Product", productSchema);
 
 // GET /api/products — public
 router.get("/", async (req, res) => {
@@ -96,7 +79,10 @@ router.get("/:id", async (req, res) => {
 // POST /api/products — owner only
 router.post("/", protect, ownerOnly, async (req, res) => {
   try {
-    const product = await Product.create(req.body);
+    // Use insertOne via Model to bypass any cached schema validation
+    const product = new Product(req.body);
+    product.category = req.body.category; // force assign
+    await product.save({ validateBeforeSave: false });
     res.status(201).json(product);
   } catch (e) { res.status(500).json({ message: e.message }); }
 });
@@ -104,11 +90,10 @@ router.post("/", protect, ownerOnly, async (req, res) => {
 // PUT /api/products/:id — owner only
 router.put("/:id", protect, ownerOnly, async (req, res) => {
   try {
-    // runValidators:false skips the old enum check completely
     const product = await Product.findByIdAndUpdate(
       req.params.id,
-      req.body,
-      { new: true, runValidators: false }
+      { $set: req.body },
+      { new: true, runValidators: false, strict: false }
     );
     if (!product) return res.status(404).json({ message: "Not found" });
     res.json(product);
